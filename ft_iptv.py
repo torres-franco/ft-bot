@@ -14,26 +14,42 @@ def cazar_link_m3u8(url_pagina):
     def interceptar_red(request):
         nonlocal link_maestro
         url_peticion = request.url
-        es_publicidad = "2mdn.net" in url_peticion or "doubleclick" in url_peticion or "googlesyndication" in url_peticion
+        
+        # 🛡️ ESCUDO ANTI-ANUNCIOS MEJORADO
+        dominios_basura = ["2mdn.net", "doubleclick", "googlesyndication", "popads", "onclick", "exoclick"]
+        es_publicidad = any(basura in url_peticion for basura in dominios_basura)
         
         if not es_publicidad:
+            # Buscamos m3u8 o mp4 y descartamos los chunklists que son pedacitos sueltos
             if (".m3u8" in url_peticion and "chunklist" not in url_peticion) or (".mp4" in url_peticion):
                 if link_maestro is None:
                     print(f"🔥 Link válido obtenido -> {url_peticion[:80]}...")
                     link_maestro = url_peticion
 
     with sync_playwright() as p:
-        # FIX: Sacamos channel="chrome" y agregamos no-sandbox para Linux
         navegador = p.chromium.launch(
             headless=True, 
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--autoplay-policy=no-user-gesture-required", "--mute-audio"]
+            args=[
+                "--no-sandbox", 
+                "--disable-setuid-sandbox", 
+                "--autoplay-policy=no-user-gesture-required", 
+                "--mute-audio",
+                "--disable-popup-blocking" # Evita el bloqueo nativo para que Playwright cierre las pestañas solo
+            ]
         )
         contexto = navegador.new_context()
+        
+        # 🚫 Bloqueamos que la página intente abrir pestañas nuevas (Pop-ups molestos)
+        contexto.on("page", lambda new_page: new_page.close())
+        
         pagina = contexto.new_page()
         pagina.on("request", interceptar_red)
 
         print(f"Ingresando al sitio web: {url_pagina}")
         try:
+            # 🚫 Bloqueamos la descarga de archivos inútiles para ahorrar RAM y esquivar virus
+            pagina.route("**/*", lambda route: route.abort() if route.request.resource_type in ["font", "image", "media"] and "m3u8" not in route.request.url and "mp4" not in route.request.url else route.continue_())
+            
             pagina.goto(url_pagina, timeout=60000)
             time.sleep(5) 
             
@@ -42,7 +58,8 @@ def cazar_link_m3u8(url_pagina):
                 pagina.evaluate("try { Reproducir(); } catch(e) { console.log(e); }")
                 print("¡Play forzado con éxito!")
             except Exception as e:
-                pagina.locator("#btn_play").click(force=True, timeout=5000)
+                # Intenta hacer click en el centro del reproductor
+                pagina.mouse.click(x=400, y=300) 
             
             time.sleep(10)
         except Exception as e:
@@ -59,7 +76,7 @@ def inyectar_en_apex(id_canal, nuevo_link):
     print(f"\n🚀 Disparando API (Camuflaje Chromium) a: {url_api}")
     try:
         with sync_playwright() as p:
-            # FIX APLICADO ACÁ TAMBIÉN
+            # Configurado para Linux (Render) sin pedir 'Chrome'
             navegador = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
             contexto = navegador.new_context()
             
@@ -77,8 +94,9 @@ def inyectar_en_apex(id_canal, nuevo_link):
     except Exception as e:
         print(f"❌ Error al conectar con el túnel de APEX: {e}")
 
-# --- DICCIONARIO DE MAPEO ---
+# --- DICCIONARIO DE MAPEO DEFINITIVO ---
 MAPEO_CANALES = {
+    # ⚽ DEPORTES Y NOSTÁLGICO (Originales)
     1: "https://futbol-libre.su/espn-premium/",
     2: "https://futbol-libre.su/tnt-sports/",
     3: "https://futbol-libre.su/fox-sports/",
@@ -86,7 +104,27 @@ MAPEO_CANALES = {
     5: "https://futbol-libre.su/tyc-sports/",
     81: "https://futbol-libre.su/espn-1/",
     101: "https://futbol-libre.su/win-sports-premium/",
-    121: "https://jetix2021.jahh19channel.xyz"
+    121: "https://jetix2021.jahh19channel.xyz",
+
+    # 🍿 CINE, SERIES Y AIRE (Importados de tu CSV V2)
+    201: "https://www.tvporinternet2.com/cinecanal-en-vivo-por-internet.html",
+    202: "https://www.tvporinternet2.com/telefe-en-vivo-por-internet.html",
+    203: "https://lapachocanal11.com.ar/vivo/",
+    204: "https://www.tvporinternet2.com/warner-channel-en-vivo-por-internet.html",
+    205: "https://www.tvporinternet2.com/tnt-en-vivo-por-internet.html",
+    206: "https://www.tvporinternet2.com/dazn-la-liga-en-vivo-por-internet.html",
+    207: "https://www.tvporinternet2.com/el-trece-en-vivo-por-internet.html",
+    208: "https://www.tvporinternet2.com/cartoon-network-en-vivo-por-internet.html",
+    209: "https://www.tvporinternet2.com/animal-planet-en-vivo-por-internet.html",
+    221: "https://www.tvporinternet2.com/star-channel-en-vivo-por-internet.html",
+    222: "https://www.tvporinternet2.com/space-en-vivo-por-internet.html",
+    223: "https://www.tvporinternet2.com/universal-channel-en-vivo-por-internet.html",
+    224: "https://www.tvporinternet2.com/dazn-f1-en-vivo-por-internet.html",
+    225: "https://www.tvporinternet2.com/tooncast-en-vivo-por-internet.html",
+    226: "https://www.tvporinternet2.com/disney-channel-en-vivo-por-internet.html",
+    227: "https://www.tvporinternet2.com/pasiones-en-vivo-por-internet.html",
+    228: "https://www.tvporinternet2.com/nat-geo-en-vivo-por-internet.html",
+    229: "https://www.tvporinternet2.com/tnt-series-en-vivo-por-internet.html"
 }
 
 # --- 🔄 RUTA PARA ACTUALIZAR CANALES (La usa el navegador/botón) ---
@@ -132,7 +170,6 @@ def obtener_canales_db():
     
     try:
         with sync_playwright() as p:
-            # FIX APLICADO ACÁ TAMBIÉN
             navegador = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
             
             contexto = navegador.new_context(
@@ -162,5 +199,5 @@ def obtener_canales_db():
             pass
 
 if __name__ == "__main__":
-    print("🚀 Bot iniciado con Escudo Anti-Rebote y Arquitectura Proxy...")
+    print("🚀 Bot iniciado con Escudo Anti-Rebote, Anti-Anuncios y Arquitectura Proxy...")
     app.run(host='0.0.0.0', port=5000)
