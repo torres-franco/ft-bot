@@ -23,10 +23,10 @@ def cazar_link_m3u8(url_pagina):
                     link_maestro = url_peticion
 
     with sync_playwright() as p:
+        # FIX: Sacamos channel="chrome" y agregamos no-sandbox para Linux
         navegador = p.chromium.launch(
             headless=True, 
-            channel="chrome",
-            args=["--autoplay-policy=no-user-gesture-required", "--mute-audio"]
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--autoplay-policy=no-user-gesture-required", "--mute-audio"]
         )
         contexto = navegador.new_context()
         pagina = contexto.new_page()
@@ -59,7 +59,8 @@ def inyectar_en_apex(id_canal, nuevo_link):
     print(f"\n🚀 Disparando API (Camuflaje Chromium) a: {url_api}")
     try:
         with sync_playwright() as p:
-            navegador = p.chromium.launch(headless=True, channel="chrome")
+            # FIX APLICADO ACÁ TAMBIÉN
+            navegador = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
             contexto = navegador.new_context()
             
             respuesta = contexto.request.put(
@@ -123,26 +124,24 @@ def refrescar_canal(id_canal):
     finally:
         CANALES_TRABAJANDO.discard(id_canal)
 
-# --- NUEVO: RUTA PROXY PARA EL CELULAR (Burlamos Akamai para leer DB) ---
 # --- RUTA PROXY PARA EL CELULAR (Burlamos Akamai leyendo la pantalla) ---
 @app.route('/api/canales', methods=['GET'])
 def obtener_canales_db():
-    # 👇 LA URL VERDADERA QUE SÍ TRAE EL JSON
     url_api = "https://oracleapex.com/ords/ft_app/ft_tv/lista"
     print(f"\n📱 [PROXY] Celular solicitando canales. Abriendo pestaña con Camuflaje...")
     
     try:
         with sync_playwright() as p:
-            navegador = p.chromium.launch(headless=True, channel="chrome")
+            # FIX APLICADO ACÁ TAMBIÉN
+            navegador = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
             
-            # Mantenemos el camuflaje humano para que Akamai no sospeche
             contexto = navegador.new_context(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
             pagina = contexto.new_page() 
             
             respuesta = pagina.goto(url_api)
-            time.sleep(2) # 2 segundos bastan para capturar el texto
+            time.sleep(2) 
             
             if respuesta.ok:
                 texto_crudo = pagina.evaluate("document.body.innerText")
