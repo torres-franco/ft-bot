@@ -20,7 +20,7 @@ def cazar_link_m3u8(url_pagina):
         es_publicidad = any(basura in url_peticion for basura in dominios_basura)
         
         if not es_publicidad:
-            # Buscamos m3u8 o mp4 y descartamos los chunklists que son pedacitos sueltos
+            # Buscamos m3u8 o mp4 y descartamos los chunklists
             if (".m3u8" in url_peticion and "chunklist" not in url_peticion) or (".mp4" in url_peticion):
                 if link_maestro is None:
                     print(f"🔥 Link válido obtenido -> {url_peticion[:80]}...")
@@ -32,9 +32,11 @@ def cazar_link_m3u8(url_pagina):
             args=[
                 "--no-sandbox", 
                 "--disable-setuid-sandbox", 
+                "--disable-dev-shm-usage", # 🛡️ FIX RAM: Evita el colapso de memoria
+                "--disable-gpu",           # 🛡️ FIX RAM: Apaga gráficos
                 "--autoplay-policy=no-user-gesture-required", 
                 "--mute-audio",
-                "--disable-popup-blocking" # Evita el bloqueo nativo para que Playwright cierre las pestañas solo
+                "--disable-popup-blocking" 
             ]
         )
         contexto = navegador.new_context()
@@ -47,12 +49,12 @@ def cazar_link_m3u8(url_pagina):
 
         print(f"Ingresando al sitio web: {url_pagina}")
         try:
-            # 🚫 Bloqueamos la descarga de archivos inútiles para ahorrar RAM y esquivar virus
+            # 🚫 Bloqueamos la descarga de archivos inútiles para ahorrar RAM
             pagina.route("**/*", lambda route: route.abort() if route.request.resource_type in ["font", "image", "media"] and "m3u8" not in route.request.url and "mp4" not in route.request.url else route.continue_())
             
-            #pagina.goto(url_pagina, timeout=60000)
+            # ⚡ MODO ANSIOSO: Solo carga el DOM, ignora el resto para evitar Timeout
             pagina.goto(url_pagina, timeout=60000, wait_until="domcontentloaded")
-            time.sleep(5)
+            time.sleep(5) 
             
             print("Inyectando la función secreta Reproducir()...")
             try:
@@ -77,8 +79,15 @@ def inyectar_en_apex(id_canal, nuevo_link):
     print(f"\n🚀 Disparando API (Camuflaje Chromium) a: {url_api}")
     try:
         with sync_playwright() as p:
-            # Configurado para Linux (Render) sin pedir 'Chrome'
-            navegador = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+            navegador = p.chromium.launch(
+                headless=True, 
+                args=[
+                    "--no-sandbox", 
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage", # 🛡️ FIX RAM
+                    "--disable-gpu"
+                ]
+            )
             contexto = navegador.new_context()
             
             respuesta = contexto.request.put(
@@ -171,7 +180,15 @@ def obtener_canales_db():
     
     try:
         with sync_playwright() as p:
-            navegador = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox"])
+            navegador = p.chromium.launch(
+                headless=True, 
+                args=[
+                    "--no-sandbox", 
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage", # 🛡️ FIX RAM
+                    "--disable-gpu"
+                ]
+            )
             
             contexto = navegador.new_context(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -200,5 +217,5 @@ def obtener_canales_db():
             pass
 
 if __name__ == "__main__":
-    print("🚀 Bot iniciado con Escudo Anti-Rebote, Anti-Anuncios y Arquitectura Proxy...")
+    print("🚀 Bot iniciado con Escudo Anti-Rebote, Anti-Anuncios, y Optimizador de Memoria RAM...")
     app.run(host='0.0.0.0', port=5000)
