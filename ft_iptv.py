@@ -50,8 +50,9 @@ def cazar_link_m3u8(url_pagina):
             # 🚫 Bloqueamos la descarga de archivos inútiles para ahorrar RAM y esquivar virus
             pagina.route("**/*", lambda route: route.abort() if route.request.resource_type in ["font", "image", "media"] and "m3u8" not in route.request.url and "mp4" not in route.request.url else route.continue_())
             
-            pagina.goto(url_pagina, timeout=60000)
-            time.sleep(5) 
+            #pagina.goto(url_pagina, timeout=60000)
+            pagina.goto(url_pagina, timeout=60000, wait_until="domcontentloaded")
+            time.sleep(5)
             
             print("Inyectando la función secreta Reproducir()...")
             try:
